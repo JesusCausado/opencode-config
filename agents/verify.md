@@ -3,18 +3,86 @@ description: Validador independiente de cierre. Comprueba criterios de aceptaci√
 mode: subagent
 permission:
   edit: deny
+  task: deny
   bash:
     "*": ask
-    "git diff*": allow
+    "node --version*": allow
+    "npm --version*": allow
+    "pnpm --version*": allow
+    "yarn --version*": allow
+    "bun --version*": allow
+    "ls *": allow
+    "ls": allow
+    "dir *": allow
+    "dir": allow
+    "cat *": allow
+    "type *": allow
+    "echo *": allow
+    "pwd": allow
+    "where *": allow
+    "which *": allow
+    "head *": allow
+    "tail *": allow
+    "npm run *": allow
+    "pnpm run *": allow
+    "yarn run *": allow
+    "bun run *": allow
+    "pnpm exec *": allow
+    "node *": allow
+    "npx tsc*": allow
+    "npx eslint*": allow
+    "npx prettier*": allow
+    "npx vitest*": allow
+    "npx jest*": allow
+    "npx playwright*": allow
+    "npm ci*": allow
+    "npm ls*": allow
+    "npm view*": allow
+    "npm outdated*": allow
+    "npm audit*": allow
+    "pnpm ls*": allow
+    "pnpm list*": allow
+    "pnpm outdated*": allow
+    "pnpm audit*": allow
+    "yarn list*": allow
+    "bun pm ls*": allow
     "git status*": allow
+    "git diff*": allow
     "git log*": allow
     "git show*": allow
-    "git commit*": deny
+    "git rev-parse*": allow
     "git push*": deny
     "git reset*": deny
     "git rebase*": deny
     "git clean*": deny
     "git commit --amend*": deny
+    "git commit*": deny
+    "git branch -d*": deny
+    "git branch -D*": deny
+    "git branch -m*": deny
+    "git branch -M*": deny
+    "git branch -c*": deny
+    "git branch -C*": deny
+    "git branch --delete*": deny
+    "git branch --move*": deny
+    "git branch --copy*": deny
+    "rm*": deny
+    "del*": deny
+    "rd*": deny
+    "rmdir*": deny
+    "Remove-Item*": deny
+    "format*": deny
+    "npm install -g*": deny
+    "npm install --global*": deny
+    "npm i -g*": deny
+    "pnpm add -g*": deny
+    "pnpm install -g*": deny
+    "yarn global*": deny
+    "bun add -g*": deny
+    "npm publish*": deny
+    "pnpm publish*": deny
+    "yarn publish*": deny
+    "bun publish*": deny
 ---
 
 # Verify

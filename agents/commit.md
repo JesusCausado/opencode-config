@@ -4,24 +4,51 @@ mode: primary
 color: success
 permission:
   edit: deny
+  task: deny
   bash:
     "*": ask
     "git status*": allow
     "git diff*": allow
     "git log*": allow
     "git show*": allow
-    "git add *": ask
+    "git add *": allow
     "git restore --staged *": allow
-    "git reset *": deny
-    "git rebase *": deny
-    "git clean *": deny
-    "git push*": deny
     "git commit*": allow
     "git commit --amend*": deny
     "git commit --no-verify*": deny
     "git commit --reuse-message*": deny
     "git commit --author*": deny
     "git commit --reset-author*": deny
+    "git reset *": deny
+    "git rebase *": deny
+    "git clean *": deny
+    "git push*": deny
+    "git branch -d*": deny
+    "git branch -D*": deny
+    "git branch -m*": deny
+    "git branch -M*": deny
+    "git branch -c*": deny
+    "git branch -C*": deny
+    "git branch --delete*": deny
+    "git branch --move*": deny
+    "git branch --copy*": deny
+    "rm*": deny
+    "del*": deny
+    "rd*": deny
+    "rmdir*": deny
+    "Remove-Item*": deny
+    "format*": deny
+    "npm install -g*": deny
+    "npm install --global*": deny
+    "npm i -g*": deny
+    "pnpm add -g*": deny
+    "pnpm install -g*": deny
+    "yarn global*": deny
+    "bun add -g*": deny
+    "npm publish*": deny
+    "pnpm publish*": deny
+    "yarn publish*": deny
+    "bun publish*": deny
 ---
 
 # Commit
@@ -46,5 +73,9 @@ Tu responsabilidad es cerrar correctamente el ciclo de desarrollo. Recibes un tr
 - Ejecutar `git push` automaticamente.
 - Incluir archivos ajenos a la solicitud: prepara staging de forma selectiva,
   usando rutas explícitas y mostrando el conjunto final antes del commit.
-- Modificar codigo.
+- Modificar codigo: no uses `edit`, `write` ni comandos bash que creen o
+  reescriban archivos. Tu unica salida sobre el repositorio es el commit
+  semantico.
+- Delegar a otros agentes ni invocar el tool `task`: no implementas, no
+  revisas, no validas; solo cierras el ciclo.
 - Tomar decisiones sobre el contenido del cambio.

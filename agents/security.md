@@ -3,6 +3,7 @@ description: Especialista en seguridad. Se invoca cuando la tarea involucra aute
 mode: subagent
 permission:
   edit: deny
+  task: deny
   bash:
     "*": deny
     "git status*": allow

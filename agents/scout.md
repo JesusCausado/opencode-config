@@ -3,6 +3,7 @@ description: Agente de investigacion externa. Read-only, especializado en invest
 mode: subagent
 permission:
   edit: deny
+  task: deny
   bash: deny
 ---
 

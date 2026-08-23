@@ -39,7 +39,7 @@ Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento
 |--------|-----------------|----------|
 | `plan` | Analizar requerimiento y generar Historia de Implementacion | `edit: deny` |
 | `build` | Implementar la Historia coordinando especialistas | completo |
-| `commit` | Cerrar ciclo con commit semantico | `edit: deny` |
+| `commit` | Cerrar ciclo con commit semantico | `edit: deny`, `task: deny` |
 
 ---
 
@@ -179,20 +179,54 @@ explícitamente.
 
 ## Política global de permisos
 
-La configuración global prioriza continuidad sin eliminar controles críticos:
+La configuración global prioriza continuidad sin eliminar controles críticos.
+Cada ruleset mantiene `"*": "ask"` como primera regla (el default de opencode
+es permitir todo; quitarla abriría el shell silenciosamente), seguido de la
+allowlist específica y, al final, los denies destructivos. La última regla
+que coincide gana.
 
-- Lectura, exploración y consultas Git seguras no requieren aprobación.
-- Las validaciones comunes tienen allowlist por nombre; no se permite el
-  comodín global `npm run *`.
-- El resto de comandos Bash permanece en `ask`.
-- Una solicitud explícita de commit autoriza el commit; push, reescritura de
-  historial y operaciones destructivas permanecen bloqueados.
-- Reset, rebase, clean y otras operaciones destructivas permanecen bloqueadas
-  para agentes de implementación.
-- Secretos, directorios externos, bucles repetitivos y efectos externos
-  mantienen controles de seguridad.
-- Las preguntas funcionales bloqueantes deben agruparse; las preferencias
-  reversibles deben resolverse sin interrumpir el flujo.
+### Categorías preautorizadas (sin pedir confirmación)
+
+- **Gestión local de dependencias**: `npm install/ci/add/remove/update/ls/view/outdated/audit`, equivalentes `pnpm`, `yarn` y `bun` (sin `-g`/`--global`).
+- **Ejecución de scripts del proyecto**: `npm run *`, `pnpm run *`, `yarn run *`, `bun run *`, `pnpm exec *`.
+- **Runtime de proyecto**: `node *` (ejecutar scripts JS del workspace).
+- **Validación común vía npx**: `npx tsc*`, `npx eslint*`, `npx prettier*`, `npx vitest*`, `npx jest*`, `npx playwright*`. Cualquier otro `npx` cae en `ask`.
+- **Inspección de solo lectura**: `ls`, `dir`, `cat`, `type`, `echo`, `pwd`, `where`, `which`, `head`, `tail`, versiones de runtimes.
+- **Filesystem dentro del workspace**: `mkdir`, `cp`, `copy`, `mv`, `move`, `touch`. Los accesos fuera del workspace siguen cubiertos por `external_directory: ask`.
+- **Git no destructivo**: `git status/diff/log/show/rev-parse`, `git add`, `git stash`, `git switch`, `git fetch`, `git restore --staged`, lectura de ramas.
+
+### Categorías protegidas (deny)
+
+- **Destructivos**: `rm`, `del`, `rd`, `rmdir`, `Remove-Item`, `format`.
+- **Git de reescritura/externo**: `git push/reset/rebase/clean/amend`, y cualquier variante de borrado/creación de ramas (`branch -d/-D/-m/-M/-c/-C/--delete/--move/--copy`).
+- **Efectos sobre la máquina**: instalaciones globales (`-g`/`--global`/`yarn global`), publicación de paquetes (`npm/pnpm/yarn/bun publish`).
+- **Nunca se autoriza** (quedan en `ask` por catch-all si aparecen): wrappers de intérprete (`bash -c`, `sh -c`, `cmd /c`, `powershell -Command`), `eval`, ejecuciones de paquetes remotos genéricos (`npx <pkg-arbitraria>`), descargas-ejecución tipo `curl | sh`.
+
+### Invariantes de protección
+
+- `doom_loop: ask` y `external_directory: ask` permanecen activos en el global.
+- Los comandos compuestos (`&&`, `||`, `;`, `|`) se dividen por opencode y se
+  evalúan subcomando a subcomando; un solo `deny` bloquea todo el bloque.
+- `commit` solo autoriza la familia `git` (lectura, staging y commit plano).
+  No puede delegar a otros agentes ni escribir archivos.
+
+### Regla de no-delegación
+
+Los agentes que no implementan declaran `task: deny` para que no puedan
+invocar especialistas con `edit: allow`. Hoy esto aplica a `commit`,
+`verify`, `review`, `explore`, `scout` y `security`. Solo `build` (que
+orquesta) y `plan` (que orquesta análisis) tienen `task` permitido, y con
+allowlist cerrada a sus especialistas.
+
+### Commit y push
+
+- Una solicitud explícita de commit autoriza el commit plano (`git commit*`).
+  Variantes destructivas (`--amend`, `--no-verify`, `--reuse-message`,
+  `--author`, `--reset-author`) permanecen denegadas.
+- `git push*` permanece denegado globalmente y debe ejecutarse manualmente.
+
+Las preguntas funcionales bloqueantes deben agruparse; las preferencias
+reversibles deben resolverse sin interrumpir el flujo.
 
 Los cambios de configuración requieren reiniciar OpenCode para surtir efecto.
 

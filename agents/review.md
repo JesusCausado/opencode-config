@@ -3,6 +3,7 @@ description: Especialista en revision de calidad. Se invoca para validar calidad
 mode: subagent
 permission:
   edit: deny
+  task: deny
   bash: deny
 ---
 

@@ -3,6 +3,7 @@ description: Agente de exploracion rapida del codebase. Read-only, especializado
 mode: subagent
 permission:
   edit: deny
+  task: deny
   bash: deny
   webfetch: deny
 ---
