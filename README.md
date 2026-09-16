@@ -4,6 +4,11 @@
 
 Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento tecnico especifico vive en los proyectos mediante AutoSkills. El entorno global contiene solo metodologia, principios y conocimiento reutilizable.
 
+El entorno prioriza autonomia local: los agentes primarios aceptan una
+solicitud directa, ejecutan sin preguntar por preferencias reversibles y
+solo detienen el flujo cuando hay una decision funcional bloqueante, una
+accion destructiva, un secreto o un efecto externo no autorizado.
+
 ---
 
 ## Estructura
@@ -14,7 +19,7 @@ Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento
   opencode.jsonc             Config global + instructions
   agents/                    Agentes primarios y especialistas
     plan.md                  Analisis -> Historia de Implementacion (orquesta explore/scout)
-    build.md                 Implementacion tecnica (orquesta especialistas)
+    build.md                 Implementador autonomo (orquesta especialistas)
     commit.md                Cierre del ciclo
     explore.md               Subagente: exploracion rapida del codebase
     scout.md                 Subagente: investigacion externa de librerias
@@ -35,17 +40,17 @@ Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento
 
 ## Agentes Primarios
 
-| Agente | Responsabilidad | Permisos |
-|--------|-----------------|----------|
-| `plan` | Analizar requerimiento y generar Historia de Implementacion | `edit: deny` |
-| `build` | Implementar la Historia coordinando especialistas | completo |
-| `commit` | Cerrar ciclo con commit semantico | `edit: deny`, `task: deny` |
+| Agente | Responsabilidad | Permisos clave |
+|--------|-----------------|----------------|
+| `plan` | Analizar requerimiento y generar Historia de Implementacion | `edit: deny`, `task: { explore, scout }` |
+| `build` | Aceptar Historia o solicitud directa, planificar, implementar, validar y cerrar | `edit: allow`, bash con allowlist propia |
+| `commit` | Cerrar ciclo con commit semantico | `edit: deny`, `task: deny`, git limitado |
 
 ---
 
 ## Especialistas
 
-### Subagentes de Implementacion (invocados por `build`)
+### Subagentes de implementacion (invocados por `build`)
 
 | Especialista | Dominio |
 |--------------|---------|
@@ -56,16 +61,15 @@ Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento
 | `review` | Calidad de codigo, bugs, regresiones, consistencia |
 | `verify` | Evidencia de criterios, validaciones y decision de cierre |
 
-`security` y `review` operan en modo lectura (`edit: deny`).
+`security`, `review`, `verify`, `explore` y `scout` operan en modo lectura
+(`edit: deny`).
 
-### Subagentes de Analisis (invocados por `plan`)
+### Subagentes de analisis (invocados por `plan`)
 
 | Subagente | Proposito |
 |-----------|-----------|
 | `explore` | Busqueda rapida en el codebase local, read-only |
 | `scout` | Investigacion de documentacion externa y dependencias, read-only |
-
-`explore` y `scout` operan en modo lectura (`edit: deny`, `bash: deny`).
 
 ---
 
@@ -83,47 +87,37 @@ Entorno basado en 3 agentes primarios con responsabilidades unicas. Conocimiento
 ## MCPs Configurados
 
 OpenCode tiene configurados dos servidores MCP (Model Context Protocol),
-actualmente deshabilitados por defecto:
+ambos deshabilitados por defecto. Habilitarlos requiere autorizacion
+explicita por la superficie de acceso que otorgan.
 
 ### Context7
 
-**Proposito:** Acceso a documentación oficial y actualizada de frameworks y librerías.
+**Proposito:** Acceso a documentacion oficial y actualizada de frameworks y librerias.
 
-**Configuracion:**
 ```json
 "context7": {
   "type": "remote",
   "url": "https://mcp.context7.com/mcp",
-  "headers": {
-    "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
-  },
+  "headers": { "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}" },
   "enabled": false
 }
 ```
 
 **Cuando usar:**
-- Antes de generar código con frameworks o librerías
-- Para consultar APIs oficiales y vigentes
-- Para validar que el código usa versiones actuales
-- Cuando haya dudas sobre configuraciones específicas
+- Antes de generar codigo con frameworks o librerias.
+- Para consultar APIs oficiales y vigentes.
+- Para validar que el codigo usa versiones actuales.
 
 **Tecnologias soportadas:**
-Astro, Tailwind CSS, Spring Boot, Angular, React, Next.js, Material UI, Prisma, NestJS, Docker, Terraform, Azure SDK, y miles más.
+Astro, Tailwind CSS, Spring Boot, Angular, React, Next.js, Material UI,
+Prisma, NestJS, Docker, Terraform, Azure SDK, y miles mas.
 
-**Uso en prompts:**
-```
-use context7 to query the latest Astro 5.x documentation
-```
-
-**Autenticación:** Configurada con API key desde `CONTEXT7_API_KEY` (variable de entorno). Si necesitas crear una, obtén una gratuita en [context7.com](https://context7.com) y configúrala como variable de entorno.
-
----
+**Autenticacion:** API key desde `CONTEXT7_API_KEY` (variable de entorno).
 
 ### Chrome DevTools MCP
 
-**Proposito:** Inspección y control del navegador Chrome para analizar aplicaciones web en ejecución.
+**Proposito:** Inspeccion y control del navegador Chrome para analizar aplicaciones web en ejecucion.
 
-**Configuracion:**
 ```json
 "chrome-devtools": {
   "type": "local",
@@ -132,39 +126,14 @@ use context7 to query the latest Astro 5.x documentation
 }
 ```
 
-**Requisito previo:** Chrome debe estar ejecutándose con remote debugging habilitado:
-```bash
-# Windows
-chrome.exe --remote-debugging-port=9222
-
-# macOS
-Google\ Chrome --remote-debugging-port=9222
-
-# Linux
-google-chrome --remote-debugging-port=9222
-```
+**Requisito previo:** Chrome debe estar ejecutandose con remote debugging
+habilitado (`chrome --remote-debugging-port=9222`).
 
 **Capacidades:**
-- Inspeccionar el DOM y CSS
-- Leer errores de consola
-- Revisar peticiones de red
-- Analizar rendimiento
-- Revisar accesibilidad
-- Tomar capturas
-- Navegar, hacer clic, escribir formularios
-
-**Cuando usar:**
-- Antes de proponer cambios visuales en frontend
-- Para validar implementaciones contra el navegador real
-- Para detectar errores de consola o problemas de CSS
-- Para comparar implementación con diseño
-
-**Uso en prompts:**
-```
-use chrome-devtools to inspect the current page and check for console errors
-```
-
----
+- Inspeccionar DOM/CSS.
+- Leer consola y red.
+- Accesibilidad y rendimiento.
+- Tomar capturas y automatizar interacciones.
 
 ### Verificar MCPs
 
@@ -173,62 +142,74 @@ opencode mcp list
 ```
 
 Debe mostrar ambos servidores en estado `disabled` mientras no se habiliten
-explícitamente.
+explicitamente.
 
 ---
 
-## Política global de permisos
+## Politica global de permisos
 
-La configuración global prioriza continuidad sin eliminar controles críticos.
-Cada ruleset mantiene `"*": "ask"` como primera regla (el default de opencode
-es permitir todo; quitarla abriría el shell silenciosamente), seguido de la
-allowlist específica y, al final, los denies destructivos. La última regla
-que coincide gana.
+Cada ruleset mantiene `"*": "ask"` como primera regla (el default de
+OpenCode es permitir todo; quitarla abriria el shell silenciosamente),
+seguido de la allowlist especifica y, al final, los denies destructivos y
+de sistema. La ultima regla que coincide gana.
 
-### Categorías preautorizadas (sin pedir confirmación)
+### Categorias preautorizadas (sin pedir confirmacion)
 
-- **Gestión local de dependencias**: `npm install/ci/add/remove/update/ls/view/outdated/audit`, equivalentes `pnpm`, `yarn` y `bun` (sin `-g`/`--global`).
-- **Ejecución de scripts del proyecto**: `npm run *`, `pnpm run *`, `yarn run *`, `bun run *`, `pnpm exec *`.
-- **Runtime de proyecto**: `node *` (ejecutar scripts JS del workspace).
-- **Validación común vía npx**: `npx tsc*`, `npx eslint*`, `npx prettier*`, `npx vitest*`, `npx jest*`, `npx playwright*`. Cualquier otro `npx` cae en `ask`.
-- **Inspección de solo lectura**: `ls`, `dir`, `cat`, `type`, `echo`, `pwd`, `where`, `which`, `head`, `tail`, versiones de runtimes.
+- **Gestion local de dependencias**: `npm install/ci/add/remove/update/ls/view/outdated/audit`, equivalentes `pnpm`, `yarn` y `bun` (sin `-g`/`--global`).
+- **Ejecucion de scripts del proyecto**: `npm run *`, `npm exec *`, `pnpm run *`, `pnpm exec *`, `yarn run *`, `bun run *`.
+- **Runtime de proyecto**: `node *`, `python *`, `python3 *`, `py *`.
+- **Paquetes Python locales**: `pip *`, `pip3 *`.
+- **Validacion comun via npx**: `npx tsc*`, `npx eslint*`, `npx prettier*`, `npx vitest*`, `npx jest*`, `npx playwright*`, `npx ts-node*`, `npx nodemon*`. Cualquier otro `npx` cae en `ask`.
+- **Inspeccion de solo lectura**: `ls`, `dir`, `cat`, `type`, `echo`, `pwd`, `where`, `which`, `head`, `tail`, `test`, `[ *`, versiones de runtimes.
 - **Filesystem dentro del workspace**: `mkdir`, `cp`, `copy`, `mv`, `move`, `touch`. Los accesos fuera del workspace siguen cubiertos por `external_directory: ask`.
-- **Git no destructivo**: `git status/diff/log/show/rev-parse`, `git add`, `git stash`, `git switch`, `git fetch`, `git restore --staged`, lectura de ramas.
+- **Git no destructivo**: `git status/diff/log/show/rev-parse`, `git add`, `git stash`, `git switch` (incluye `git switch -c*` para crear ramas), `git checkout`, `git fetch`, `git restore --staged`, lectura de ramas.
+- **Impresion y spool**: `lp *`, `lpstat *`, `lpq *`, `lprm *`, `lpoptions *`, `lpr *`, `cancel *`, `print *`. Estas reglas se mantienen porque la autorizacion para imprimir se otorga por el contexto de la peticion explicita del usuario.
 
-### Categorías protegidas (deny)
+### Categorias protegidas (deny)
 
-- **Destructivos**: `rm`, `del`, `rd`, `rmdir`, `Remove-Item`, `format`.
-- **Git de reescritura/externo**: `git push/reset/rebase/clean/amend`, y cualquier variante de borrado/creación de ramas (`branch -d/-D/-m/-M/-c/-C/--delete/--move/--copy`).
-- **Efectos sobre la máquina**: instalaciones globales (`-g`/`--global`/`yarn global`), publicación de paquetes (`npm/pnpm/yarn/bun publish`).
-- **Nunca se autoriza** (quedan en `ask` por catch-all si aparecen): wrappers de intérprete (`bash -c`, `sh -c`, `cmd /c`, `powershell -Command`), `eval`, ejecuciones de paquetes remotos genéricos (`npx <pkg-arbitraria>`), descargas-ejecución tipo `curl | sh`.
+- **Destructivos**: `rm`, `del`, `rd`, `rmdir`, `Remove-Item`, `format`, `dd`, `mkfs`, `diskpart`.
+- **Git de reescritura/externo**: `git push/reset/rebase/clean/amend`, y cualquier variante de borrado/creacion de ramas (`branch -d/-D/-m/-M/-c/-C/--delete/--move/--copy`). `git commit*` se deniega en `build` (solo `commit` lo permite) y se permite plano en `commit`.
+- **Efectos sobre la maquina**: instalaciones globales (`-g`/`--global`/`yarn global`), publicacion de paquetes (`npm/pnpm/yarn/bun publish`), administracion (`sudo`, `runas`, `net user`, `net localgroup`, `sc`, `reg`, `bcdedit`, `netsh`).
+- **Wrappers de interprete**: `bash -c *`, `sh -c *`, `zsh -c *`, `cmd /c *`, `powershell -Command *`, `pwsh -Command *`, `eval *`. Se bloquean porque cualquier comando permitido podria invocarse indirectamente a traves de ellos.
 
-### Invariantes de protección
+### Invariantes de proteccion
 
 - `doom_loop: ask` y `external_directory: ask` permanecen activos en el global.
 - Los comandos compuestos (`&&`, `||`, `;`, `|`) se dividen por opencode y se
-  evalúan subcomando a subcomando; un solo `deny` bloquea todo el bloque.
+  evaluan subcomando a subcomando; un solo `deny` bloquea todo el bloque.
 - `commit` solo autoriza la familia `git` (lectura, staging y commit plano).
   No puede delegar a otros agentes ni escribir archivos.
+- `build` declara su propia allowlist de bash para que el resto de los
+  agentes no herede automaticamente categorias mas amplias.
 
-### Regla de no-delegación
+### Regla de no-delegacion
 
 Los agentes que no implementan declaran `task: deny` para que no puedan
-invocar especialistas con `edit: allow`. Hoy esto aplica a `commit`,
-`verify`, `review`, `explore`, `scout` y `security`. Solo `build` (que
-orquesta) y `plan` (que orquesta análisis) tienen `task` permitido, y con
+invocar especialistas con `edit: allow`. Esto aplica a `commit`, `verify`,
+`review`, `explore`, `scout` y `security`. Solo `build` (orquesta
+implementacion) y `plan` (orquesta analisis) tienen `task` permitido y con
 allowlist cerrada a sus especialistas.
 
 ### Commit y push
 
-- Una solicitud explícita de commit autoriza el commit plano (`git commit*`).
+- Una solicitud explicita de commit autoriza el commit plano (`git commit*`).
   Variantes destructivas (`--amend`, `--no-verify`, `--reuse-message`,
   `--author`, `--reset-author`) permanecen denegadas.
 - `git push*` permanece denegado globalmente y debe ejecutarse manualmente.
 
+### Efectos externos y hardware
+
+- Las reglas de impresion, red y administracion no se activan por si solas:
+  una peticion explicita del usuario autoriza unicamente el efecto nombrado.
+- Si una validacion depende de una herramienta no disponible (CLI, MCP,
+  dispositivo), el agente lo declara como limitacion en el cierre; no
+  simula un resultado.
+
 Las preguntas funcionales bloqueantes deben agruparse; las preferencias
 reversibles deben resolverse sin interrumpir el flujo.
 
-Los cambios de configuración requieren reiniciar OpenCode para surtir efecto.
+Los cambios de configuracion requieren reiniciar OpenCode para surtir
+efecto.
 
 ---
 
@@ -237,16 +218,22 @@ Los cambios de configuración requieren reiniciar OpenCode para surtir efecto.
 ```
   Plan              Build              Commit
   -----             -----              -----
-  Analiza     ->    Implementa    ->   Cierra ciclo
-  Historia         Coordina            Commit
-                   especialistas       semantico
+  Analiza     ->    Plan visible  ->   Cierra ciclo
+  Historia         Implementa          Commit
+                   Valida              semantico
+                   Reporta hallazgos
 ```
 
+Build acepta una Historia o una solicitud directa. Cuando recibe una
+solicitud directa, publica primero un plan y una lista de todos, los
+mantiene visibles durante la ejecucion y cierra con un bloque estandar
+de cambios, validaciones, hallazgos, pendientes y limitaciones.
+
 Especialistas disponibles para `build`:
-- `backend` | `frontend` | `database` | `security` | `review` | `verify`
+`backend` | `frontend` | `database` | `security` | `review` | `verify`.
 
 Subagentes disponibles para `plan`:
-- `explore` | `scout`
+`explore` | `scout`.
 
 ---
 
@@ -262,13 +249,10 @@ Subagentes disponibles para `plan`:
 - Ejecuta las validaciones posibles antes de finalizar.
 - Reporta riesgos y bloqueos encontrados.
 - No realices commits ni push sin autorizacion.
-
----
-
-## Notas
-
-- Config se carga al iniciar. Reinicia OpenCode despues de cambios.
-- `opencode.jsonc` declara `$schema` para validacion automatica.
-- Conocimiento tecnico especifico (frameworks, BD, patrones) vive en AutoSkills del proyecto.
-- Especialistas son `mode: subagent`, invisibles en el menu principal.
-# opencode-config
+- Actua con autonomia local: explora, edita, valida y delega sin
+  preguntar por preferencias reversibles.
+- Manten visibles el plan y los todos durante la ejecucion.
+- Solo pide confirmacion para acciones destructivas, secretos,
+  produccion o efectos externos no autorizados.
+- Cuando una validacion externa o fisica no sea posible, declaralo en el
+  cierre; no inventes resultados.
