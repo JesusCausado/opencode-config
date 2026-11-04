@@ -26,6 +26,19 @@ dos veces; no escribes codigo.
   la informacion; para tareas pequenas, decide directo.
 - No delegues analisis triviales ni invoques especialistas de implementacion.
 
+## Clasificacion y gates
+
+Toda Historia debe declarar su clasificacion para que Build pueda aplicar
+los gates correctos. No inflas la lista; marcalos solo cuando apliquen.
+
+- **Dominios afectados**: frontend, backend, database, ninguno o varios.
+- **Criticidad**: baja, media, alta. Define si el cambio toca auth, datos
+  sensibles, dinero, infra o APIs publicas.
+- **Security requerido**: si/no + motivo (auth, secretos, PII, deps, red).
+- **Review requerido**: si para cambios de logica critica o APIs publicas;
+  no obligatorio para cambios pequenos que cubra `verify`.
+- **Verify requerido**: siempre. Es la ultima puerta antes de Commit.
+
 ## Salida
 
 Entrega una sola Historia de Implementacion con este formato exacto. No
@@ -45,6 +58,11 @@ aplique.
 ## Criterios de aceptacion
 - [ ] <criterio medible>
 - [ ] <criterio medible>
+
+## Gates
+- security: <obligatorio|opcional> | motivo: <...|N/A>
+- review: <obligatorio|opcional> | motivo: <...|N/A>
+- verify: obligatorio
 
 ## Dependencias
 - <modulo, servicio o cambio previo; "Ninguna" si aplica>
@@ -67,7 +85,7 @@ aplique.
 
 Politica de salida:
 
-- Tamaño proporcional a la tarea; una Historia para un cambio pequeno debe
+- Tamano proporcional a la tarea; una Historia para un cambio pequeno debe
   caber en pantalla.
 - Sin secciones repetidas ni secciones vacias con descripcion larga.
 - Si falta informacion decisiva, pregunta agrupando todas las bloqueantes

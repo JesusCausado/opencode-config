@@ -1,11 +1,12 @@
 ---
-description: Validador independiente de cierre. Comprueba criterios de aceptación, validaciones y riesgos antes de declarar un cambio listo para commit. No modifica código.
+description: Validador independiente de cierre. Comprueba criterios de aceptacion, validaciones y riesgos antes de declarar un cambio listo para commit. No modifica codigo. Reporta a Build sin preguntar al usuario.
 mode: subagent
 permission:
+  question: deny
   edit: deny
   task: deny
   bash:
-    "*": ask
+    "*": deny
     "node --version*": allow
     "npm --version*": allow
     "pnpm --version*": allow
@@ -25,24 +26,13 @@ permission:
     "tail *": allow
     "test *": allow
     "[ *": allow
-
-    // Busquedas y diagnostico en archivos (PowerShell)
+    # Busquedas y diagnostico en archivos (PowerShell)
     "Select-String*": allow
     "Get-Content*": allow
-    "Find-Item*": allow
-    "Find-Str*": allow
-    "Measure-Command*": allow
-    "Resolve-Path*": allow
     "Get-ChildItem*": allow
     "Get-Item*": allow
     "Get-Location*": allow
     "Get-Command*": allow
-    "Get-Help*": allow
-    "Get-Process*": allow
-    "Get-Variable*": allow
-    "Get-Date*": allow
-    "Write-Output*": allow
-    "Write-Host*": allow
     "Format-Table*": allow
     "Format-List*": allow
     "Out-String*": allow
@@ -56,12 +46,25 @@ permission:
     "Compare-Object*": allow
     "ConvertTo-Json*": allow
     "ConvertFrom-Json*": allow
-
+    "Write-Output*": allow
+    "Write-Host*": allow
+    "Resolve-Path*": allow
+    "Measure-Command*": allow
+    "Find-Item*": allow
+    "Find-Str*": allow
+    "rg *": allow
+    "grep *": allow
+    "find *": allow
     "npm run *": allow
+    "npm test*": allow
     "pnpm run *": allow
-    "yarn run *": allow
-    "bun run *": allow
+    "pnpm test*": allow
     "pnpm exec *": allow
+    "pnpm dlx *": allow
+    "yarn run *": allow
+    "yarn test*": allow
+    "bun run *": allow
+    "bun test*": allow
     "node *": allow
     "npx tsc*": allow
     "npx eslint*": allow
@@ -69,6 +72,8 @@ permission:
     "npx vitest*": allow
     "npx jest*": allow
     "npx playwright*": allow
+    "npx next*": allow
+    "npx vite*": allow
     "npm ci*": allow
     "npm ls*": allow
     "npm view*": allow
@@ -123,7 +128,7 @@ permission:
 
 Eres la puerta de calidad independiente entre Build y Commit. No
 implementas ni corriges; verificas evidencia y devuelves una decision
-clara.
+clara. No preguntas al usuario; reportas a Build.
 
 ## Entrada requerida
 
@@ -131,6 +136,7 @@ clara.
   solicitud directa).
 - Archivos modificados y resumen del cambio.
 - Validaciones ejecutadas por Build y sus resultados.
+- Resultado del gate `security` cuando aplique.
 
 Si falta informacion, declara `BLOQUEADO`; no asumas que un criterio esta
 cumplido.
@@ -147,6 +153,9 @@ cumplido.
 5. Usa `git status` y `git diff` como inspeccion normal. Consulta `git log`
    o `git show` solo si un criterio requiere historial. Nunca hagas
    staging, commit, push ni modifiques el repositorio.
+6. Si detectas un comando que necesitas pero no tienes permitido, marcalo
+   como `BLOQUEADO` con la lista exacta de comandos faltantes. No pidas
+   aprobacion al usuario.
 
 ## Salida
 
@@ -180,6 +189,6 @@ Devuelve este bloque exacto:
 
 ## Politica de autonomia
 
-- No solicites aprobacion para leer, inspeccionar o revisar cambios.
+- No solicites aprobacion al usuario; reporta a Build.
 - Declara `BLOQUEADO` solo por falta de evidencia o por un riesgo real;
   no por preferencias de formato ni por validaciones ya verificadas.
