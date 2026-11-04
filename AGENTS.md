@@ -34,7 +34,7 @@ Plan -> Build -> especialistas -> Security -> Review -> Verify -> Commit
                           \_____________ remediacion ____________/
 ```
 
-- **Plan** es el unico punto donde se agrupan preguntas funcionales.
+- **Plan** es el unico punto donde se pregunta al usuario; Build no puede.
 - **Build** orquesta la implementacion y los gates.
 - Los subagentes ejecutan y reportan; nunca preguntan al usuario.
 - **Verify** es obligatorio y precede a **Commit**.
@@ -42,19 +42,13 @@ Plan -> Build -> especialistas -> Security -> Review -> Verify -> Commit
 
 ## Permisos y autonomia
 
-- La allowlist bash global cubre las operaciones locales habituales
-  (lectura, file system PowerShell, runtimes, scripts de proyecto,
-  test runners, validadores, Git no destructivo, dependencias locales).
-  Comandos desconocidos caen en `ask` y se aprueban con `always` para
-  la sesion o con `opencode --auto` al iniciar OpenCode.
-- Los denies para destructivos, push, publicacion, administracion y
-  wrappers de interprete son innegociables.
-- `--auto` aprueba todos los `ask` durante la sesion; los `deny`
-  explicitos siguen bloqueando. Es optimo cuando quieres consentimiento
-  de sesion sin personalizar la allowlist.
-- Las reglas estaticas en `opencode.jsonc` son preferibles a `--auto`
-  cuando un comando es habitual y seguro: la aprobacion persiste entre
-  sesiones y deja `ask` libre para casos realmente excepcionales.
+- Bash permite todo por defecto; lo destructivo, el historial de git,
+  la publicacion, la administracion, los efectos de produccion y los
+  wrappers de interprete estan denegados explicitamente.
+- Se prefiere `deny` sobre `ask`: un deny no bloquea la sesion y el
+  agente busca otra via. Ningun agente del pipeline se queda esperando.
+- Build corre sin supervision (`question: deny`): decide lo reversible,
+  registra sus decisiones y deja los bloqueos en el Cierre.
 - Los subagentes (frontend, backend, database, security, review, verify,
   explore, scout) tienen `question: deny` y reportan bloqueos a Build.
 

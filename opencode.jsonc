@@ -2,218 +2,45 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": ["AGENTS.md"],
 
+  // Modelo de permisos: autonomia por defecto, deny explicito para lo
+  // destructivo o externo. Las reglas se encadenan global -> agente y gana
+  // la ULTIMA que coincide: un agente que redefina "*" anula estos deny y
+  // debe repetir los que necesite (commit, verify y security lo hacen con
+  // "*": deny + allowlist propia).
+  //
+  // "deny" en vez de "ask" es intencional: un deny no bloquea la sesion,
+  // el agente recibe el rechazo y busca otra via. Asi Build termina solo.
   "permission": {
     "question": "allow",
     "todowrite": "allow",
-    "doom_loop": "ask",
-    "external_directory": "ask",
-    "edit": "ask",
+    "doom_loop": "deny", // corta bucles en vez de quedarse esperando
+    // "allow": un deny/ask aqui queda despues de los allow automaticos de
+    // skills y las bloquearia; ademas bash ya puede salir del repo.
+    "external_directory": "allow",
+    "edit": "ask", // cada agente que edita declara edit: allow
 
     "bash": {
-      "*": "ask",
+      "*": "allow",
 
-      // Lectura y diagnostico
-      "ls": "allow",
-      "ls *": "allow",
-      "dir": "allow",
-      "dir *": "allow",
-      "cat *": "allow",
-      "type *": "allow",
-      "echo *": "allow",
-      "pwd": "allow",
-      "where *": "allow",
-      "which *": "allow",
-      "head *": "allow",
-      "tail *": "allow",
-      "test *": "allow",
-      "[ *": "allow",
-
-      // Busquedas y diagnostico en archivos (PowerShell)
-      "Select-String*": "allow",
-      "Get-Content*": "allow",
-      "Get-ChildItem*": "allow",
-      "Get-Item*": "allow",
-      "Get-Location*": "allow",
-      "Get-Command*": "allow",
-      "Get-Help*": "allow",
-      "Get-Process*": "allow",
-      "Get-Variable*": "allow",
-      "Get-Date*": "allow",
-      "Write-Output*": "allow",
-      "Write-Host*": "allow",
-      "Format-Table*": "allow",
-      "Format-List*": "allow",
-      "Out-String*": "allow",
-      "Out-Null*": "allow",
-      "Sort-Object*": "allow",
-      "Where-Object*": "allow",
-      "ForEach-Object*": "allow",
-      "Group-Object*": "allow",
-      "Select-Object*": "allow",
-      "Measure-Object*": "allow",
-      "Compare-Object*": "allow",
-      "ConvertTo-Json*": "allow",
-      "ConvertFrom-Json*": "allow",
-      "Resolve-Path*": "allow",
-      "Measure-Command*": "allow",
-      "Find-Item*": "allow",
-      "Find-Str*": "allow",
-
-      // Busqueda de contenido (CLI)
-      "rg *": "allow",
-      "grep *": "allow",
-      "find *": "allow",
-
-      // File system seguro
-      "mkdir *": "allow",
-      "copy *": "allow",
-      "cp *": "allow",
-      "move *": "allow",
-      "mv *": "allow",
-      "touch *": "allow",
-      // File system PowerShell (cmdlets equivalentes a mv/cp/rename)
-      "Move-Item *": "allow",
-      "Rename-Item *": "allow",
-      "Copy-Item *": "allow",
-
-      // Runtimes de proyecto
-      "node *": "allow",
-      "python *": "allow",
-      "python3 *": "allow",
-      "py *": "allow",
-      "pip *": "allow",
-      "pip3 *": "allow",
-      "dotnet *": "allow",
-      "go *": "allow",
-      "cargo *": "allow",
-      "gradle *": "allow",
-      "mvn *": "allow",
-      "flutter *": "allow",
-      "dart *": "allow",
-      "swift *": "allow",
-      "xcodebuild *": "allow",
-
-      // Scripts de proyecto
-      "npm run *": "allow",
-      "npm exec *": "allow",
-      "npm test*": "allow",
-      "pnpm run *": "allow",
-      "pnpm exec *": "allow",
-      "pnpm dlx *": "allow",
-      "pnpm test*": "allow",
-      "yarn run *": "allow",
-      "yarn test*": "allow",
-      "bun run *": "allow",
-      "bun test*": "allow",
-
-      // Validadores y herramientas via npx
-      "npx tsc*": "allow",
-      "npx eslint*": "allow",
-      "npx prettier*": "allow",
-      "npx vitest*": "allow",
-      "npx jest*": "allow",
-      "npx playwright*": "allow",
-      "npx ts-node*": "allow",
-      "npx nodemon*": "allow",
-      "npx next*": "allow",
-      "npx vite*": "allow",
-      "npx astro*": "allow",
-      "npx remix*": "allow",
-      "npx prisma*": "allow",
-      "npx drizzle-kit*": "allow",
-      "npx tsup*": "allow",
-      "npx tailwind*": "allow",
-      "npx shadcn*": "allow",
-
-      // Instalacion npm local
-      "npm ci*": "allow",
-      "npm install*": "allow",
-      "npm i *": "allow",
-      "npm add *": "allow",
-      "npm remove *": "allow",
-      "npm uninstall*": "allow",
-      "npm update*": "allow",
-      "npm ls*": "allow",
-      "npm view*": "allow",
-      "npm outdated*": "allow",
-      "npm audit*": "allow",
-      "pnpm install*": "allow",
-      "pnpm add *": "allow",
-      "pnpm remove *": "allow",
-      "pnpm update*": "allow",
-      "pnpm ls*": "allow",
-      "pnpm list*": "allow",
-      "pnpm outdated*": "allow",
-      "pnpm audit*": "allow",
-      "yarn add *": "allow",
-      "yarn install*": "allow",
-      "yarn remove *": "allow",
-      "yarn upgrade*": "allow",
-      "yarn list*": "allow",
-      "yarn audit*": "allow",
-      "bun add *": "allow",
-      "bun install*": "allow",
-      "bun remove *": "allow",
-      "bun update*": "allow",
-      "bun pm ls*": "allow",
-
-      // CLIs de base de datos (lectura y diagnostico)
-      "psql *": "allow",
-      "mysql *": "allow",
-      "sqlite3 *": "allow",
-      "mongo *": "allow",
-      "mongosh *": "allow",
-      "redis-cli *": "allow",
-      "docker ps*": "allow",
-      "docker logs*": "allow",
-
-      // Impresion (solo si el usuario la pide)
-      "lp *": "allow",
-      "lpstat *": "allow",
-      "lpq *": "allow",
-      "lprm *": "allow",
-      "lpoptions *": "allow",
-      "lpr *": "allow",
-      "cancel *": "allow",
-      "print *": "allow",
-
-      // Git seguro (lectura y ramas)
-      "git status*": "allow",
-      "git diff*": "allow",
-      "git log*": "allow",
-      "git show*": "allow",
-      "git branch": "allow",
-      "git branch -a*": "allow",
-      "git branch --list*": "allow",
-      "git rev-parse*": "allow",
-      "git add*": "allow",
-      "git stash*": "allow",
-      "git switch*": "allow",
-      "git checkout*": "allow",
-      "git fetch*": "allow",
-      "git restore --staged*": "allow",
-
-      // DENY: destructivos
-      "rm*": "deny",
-      "del*": "deny",
-      "rd*": "deny",
-      "rmdir*": "deny",
-      "Remove-Item*": "deny",
-      "format*": "deny",
-      "dd *": "deny",
-      "mkfs*": "deny",
-      "diskpart*": "deny",
-
-      // DENY: git destructivo y externo
+      // DENY: git de historial y ramas
+      "git -C *": "deny",
       "git push*": "deny",
+      "git commit*": "deny", // solo el agente commit lo habilita
       "git reset*": "deny",
       "git rebase*": "deny",
+      "git merge*": "deny",
       "git clean*": "deny",
-      "git commit --amend*": "deny",
-      "git commit --no-verify*": "deny",
-      "git commit --reuse-message*": "deny",
-      "git commit --author*": "deny",
-      "git commit --reset-author*": "deny",
+      "git filter-branch*": "deny",
+      "git update-ref*": "deny",
+      "git reflog expire*": "deny",
+      "git gc --prune*": "deny",
+      "git stash drop*": "deny",
+      "git stash clear*": "deny",
+      "git checkout -- *": "deny",
+      "git checkout .": "deny",
+      "git restore*": "deny",
+      "git restore --staged*": "allow",
+      "git tag -d*": "deny",
       "git branch -d*": "deny",
       "git branch -D*": "deny",
       "git branch -m*": "deny",
@@ -223,6 +50,20 @@
       "git branch --delete*": "deny",
       "git branch --move*": "deny",
       "git branch --copy*": "deny",
+
+      // DENY: destructivos de disco
+      "rm*": "deny",
+      "del*": "deny",
+      "erase *": "deny",
+      "rd*": "deny",
+      "rmdir*": "deny",
+      "Remove-Item*": "deny",
+      "ri *": "deny",
+      "format*": "deny",
+      "dd *": "deny",
+      "mkfs*": "deny",
+      "diskpart*": "deny",
+      "cipher /w*": "deny",
 
       // DENY: instalacion global y publish
       "npm install -g*": "deny",
@@ -236,6 +77,9 @@
       "yarn publish*": "deny",
       "bun add -g*": "deny",
       "bun publish*": "deny",
+      "choco *": "deny",
+      "winget *": "deny",
+      "scoop *": "deny",
 
       // DENY: administracion del sistema
       "sudo *": "deny",
@@ -246,6 +90,27 @@
       "reg *": "deny",
       "bcdedit *": "deny",
       "netsh *": "deny",
+      "shutdown*": "deny",
+      "Stop-Computer*": "deny",
+      "Restart-Computer*": "deny",
+      "Set-ExecutionPolicy*": "deny",
+      "Start-Process*": "deny",
+
+      // DENY: efectos externos / produccion
+      "ssh *": "deny",
+      "scp *": "deny",
+      "gh pr merge*": "deny",
+      "gh release*": "deny",
+      "gh repo delete*": "deny",
+      "docker rm*": "deny",
+      "docker rmi*": "deny",
+      "docker volume rm*": "deny",
+      "docker system prune*": "deny",
+      "kubectl apply*": "deny",
+      "kubectl delete*": "deny",
+      "terraform apply*": "deny",
+      "terraform destroy*": "deny",
+      "dropdb*": "deny",
 
       // DENY: wrappers de interprete (evitan bypass)
       "bash -c *": "deny",
@@ -253,12 +118,22 @@
       "zsh -c *": "deny",
       "cmd /c *": "deny",
       "cmd.exe /c *": "deny",
-      "powershell -Command *": "deny",
-      "powershell.exe -Command *": "deny",
-      "pwsh -Command *": "deny",
+      "powershell -c*": "deny",
+      "powershell -e*": "deny",
+      "powershell.exe -c*": "deny",
+      "powershell.exe -e*": "deny",
+      "pwsh -c*": "deny",
+      "pwsh -e*": "deny",
+      "Invoke-Expression*": "deny",
+      "iex *": "deny",
       "eval *": "deny"
     }
   },
+
+  // Modelos: sin "model" los subagentes heredan el del agente primario que
+  // los invoca; cambiar el modelo de la sesion de Build (/models) cambia
+  // todo el pipeline. Para fijar uno: "model": "<proveedor>/<modelo>" en el
+  // frontmatter del agente (ver `opencode models`).
 
   "mcp": {
     "context7": {

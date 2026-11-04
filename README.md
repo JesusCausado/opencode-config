@@ -6,9 +6,9 @@ Entorno basado en agentes primarios y subagentes con responsabilidades
 claras. El usuario concede el consentimiento al inicio de la sesion y el
 pipeline ejecuta autonomamente hasta el cierre, salvo bloqueos reales.
 
-El entorno prioriza autonomia local estilo Codex/Claude: `opencode --auto`
-(o activar **Enable auto-approve permissions** en la TUI) aprueba todos
-los `ask` durante la sesion. Los `deny` explicitos permanecen bloqueados.
+El entorno prioriza autonomia estilo Codex/Claude: bash permite todo por
+defecto y deniega explicitamente lo destructivo o externo. Build corre sin
+supervision (`question: deny`) y nunca se queda esperando un `ask`.
 
 ---
 
@@ -59,7 +59,7 @@ Plan  ->  Build  ->  especialistas  ->  Security  ->  Review  ->  Verify  ->  Co
 | Agente | Responsabilidad | Permisos clave |
 |--------|-----------------|----------------|
 | `plan` | Analizar requerimiento y generar Historia de Implementacion | `edit: deny`, `bash: deny`, `task: { explore, scout }` |
-| `build` | Aceptar Historia o solicitud directa, planificar, implementar, validar y cerrar | `edit: allow`, `question: allow`, bash global, `task` con allowlist cerrada |
+| `build` | Implementar sin supervision: especialistas, gates, verify y Cierre listo para commit | `edit: allow`, `question: deny`, bash global, `task` con allowlist cerrada |
 | `commit` | Cerrar ciclo con commit semantico (solo tras Verify APROBADO) | `edit: deny`, `task: deny`, `question: deny`, git restringido |
 
 ---
@@ -166,99 +166,93 @@ explicitamente.
 
 ## Politica global de permisos
 
-La allowlist bash global cubre las operaciones locales habituales (lectura,
-runtimes, scripts npm/pnpm/yarn/bun, validadores, Git no destructivo,
-instalacion local, CLIs de base de datos). Comandos desconocidos caen en
-`ask` y se aprueban con `always` para la sesion o con `opencode --auto`
-al iniciar OpenCode.
+Objetivo: que `build` termine una implementacion **sin supervision**. El
+modelo es "permitir por defecto, denegar lo peligroso".
 
-### Categorias preautorizadas (sin pedir confirmacion)
+- El global define `bash: { "*": "allow", ...deny }`. Las reglas se
+  encadenan global -> agente y **gana la ultima que coincide**. Un agente
+  que redefine `"*"` anula los deny globales y debe repetir los que
+  necesite (`commit`, `verify` y `security` usan `"*": deny` con
+  allowlist propia).
+- Se usa `deny` en lugar de `ask`: un `deny` no bloquea la sesion, el
+  agente recibe el rechazo y busca otra via. Un `ask` deja la sesion
+  esperando a alguien que puede no estar.
+- `question`: solo `plan` lo tiene habilitado. `build` y los subagentes
+  deciden lo reversible y reportan los bloqueos en el Cierre.
+- `doom_loop: deny` corta bucles repetitivos. `external_directory: allow`:
+  un deny bloquearia la lectura de skills (opencode agrega sus allow antes
+  que la config) y bash ya puede salir del repo, asi que no protegeria.
+- `edit: ask` global; cada agente que implementa declara `edit: allow`.
+- Los comandos compuestos (`&&`, `||`, `;`, `|`) se evaluan subcomando
+  a subcomando; un solo `deny` bloquea todo.
 
-- **Gestion local de dependencias**: `npm install/ci/add/remove/update/ls/view/outdated/audit`, equivalentes `pnpm`, `yarn` y `bun` (sin `-g`/`--global`).
-- **Ejecucion de scripts del proyecto**: `npm run *`, `npm exec *`, `pnpm run *`, `pnpm exec *`, `pnpm dlx *`, `yarn run *`, `bun run *`.
-- **Test runners directos**: `npm test*`, `pnpm test*`, `yarn test*`, `bun test*`. Cubren `pnpm test`, `pnpm test --watch`, `pnpm test 2>&1`, etc.
-- **Runtimes de proyecto**: `node *`, `python *`, `python3 *`, `py *`, `dotnet *`, `go *`, `cargo *`, `gradle *`, `mvn *`, `flutter *`, `dart *`, `swift *`, `xcodebuild *`.
-- **Paquetes Python locales**: `pip *`, `pip3 *`.
-- **Validacion comun via npx**: `npx tsc*`, `npx eslint*`, `npx prettier*`, `npx vitest*`, `npx jest*`, `npx playwright*`, `npx next*`, `npx vite*`, `npx astro*`, `npx prisma*`, `npx drizzle-kit*`, `npx ts-node*`, `npx nodemon*`. Cualquier otro `npx` cae en `ask`.
-- **Inspeccion de solo lectura**: `ls`, `dir`, `cat`, `type`, `echo`, `pwd`, `where`, `which`, `head`, `tail`, `test`, `[ *`, `rg`, `grep`, `find`, versiones de runtimes, cmdlets PowerShell de lectura.
-- **Filesystem dentro del workspace**: `mkdir`, `cp`, `copy`, `mv`, `move`, `touch` y los cmdlets PowerShell `Move-Item *`, `Rename-Item *`, `Copy-Item *`. Los accesos fuera del workspace siguen cubiertos por `external_directory: ask`.
-- **Git no destructivo**: `git status/diff/log/show/rev-parse`, `git add`, `git stash`, `git switch`, `git checkout`, `git fetch`, `git restore --staged`, lectura de ramas.
-- **CLIs de base de datos (lectura/diagnostico)**: `psql`, `mysql`, `sqlite3`, `mongo`, `mongosh`, `redis-cli`, `docker ps/logs`.
-- **Impresion y spool**: `lp *`, `lpstat *`, `lpq *`, `lprm *`, `lpoptions *`, `lpr *`, `cancel *`, `print *`. Estas reglas se mantienen porque la autorizacion para imprimir se otorga por el contexto de la peticion explicita del usuario.
+### Categorias denegadas
 
-### Categorias protegidas (deny)
+- **Git de historial/ramas**: `push`, `commit` (solo `commit` lo habilita),
+  `reset`, `rebase`, `merge`, `clean`, `filter-branch`, `update-ref`,
+  `stash drop/clear`, `checkout -- / .`, `restore` (salvo `--staged`),
+  borrado/renombre de ramas y tags, y `git -C *` (evita saltar patrones).
+- **Destructivos de disco**: `rm`, `del`, `erase`, `rd`, `rmdir`,
+  `Remove-Item`/`ri`, `format`, `dd`, `mkfs`, `diskpart`, `cipher /w`.
+- **Maquina**: instalaciones globales y `publish`, `choco`/`winget`/`scoop`,
+  `sudo`, `runas`, `net user/localgroup`, `sc`, `reg`, `bcdedit`, `netsh`,
+  `shutdown`, `Stop/Restart-Computer`, `Set-ExecutionPolicy`,
+  `Start-Process`.
+- **Efectos externos/produccion**: `ssh`, `scp`, `gh pr merge`,
+  `gh release`, `gh repo delete`, borrados de `docker`, `kubectl
+  apply/delete`, `terraform apply/destroy`, `dropdb`.
+- **Wrappers de interprete**: `bash/sh/zsh -c`, `cmd /c`,
+  `powershell|pwsh -c|-e...`, `Invoke-Expression`/`iex`, `eval`.
 
-- **Destructivos**: `rm`, `del`, `rd`, `rmdir`, `Remove-Item`, `format`, `dd`, `mkfs`, `diskpart`.
-- **Git de reescritura/externo**: `git push/reset/rebase/clean/amend`, variantes destructivas de commit y cualquier variante de borrado/creacion de ramas (`branch -d/-D/-m/-M/-c/-C/--delete/--move/--copy`). `git commit*` se deniega globalmente; solo `commit` lo permite.
-- **Efectos sobre la maquina**: instalaciones globales (`-g`/`--global`/`yarn global`), publicacion de paquetes (`npm/pnpm/yarn/bun publish`), administracion (`sudo`, `runas`, `net user`, `net localgroup`, `sc`, `reg`, `bcdedit`, `netsh`).
-- **Wrappers de interprete**: `bash -c *`, `sh -c *`, `zsh -c *`, `cmd /c *`, `powershell -Command *`, `pwsh -Command *`, `eval *`. Se bloquean porque cualquier comando permitido podria invocarse indirectamente.
+### Riesgo aceptado
 
-### Invariantes de proteccion
-
-- `doom_loop: ask` y `external_directory: ask` permanecen activos en el global.
-- Los comandos compuestos (`&&`, `||`, `;`, `|`) se dividen por opencode y se
-  evaluan subcomando a subcomando; un solo `deny` bloquea todo el bloque.
-- `commit` solo autoriza la familia `git` (lectura, staging y commit plano).
-  No puede delegar a otros agentes, no puede editar y no puede preguntar.
-- `build` declara una allowlist de task con `*: deny` cerrada a sus
-  especialistas (frontend, backend, database, security, review, verify,
-  explore, scout).
-- Todos los subagentes tienen `question: deny`; solo `plan` y `build`
-  pueden formular preguntas al usuario.
+Una lista de deny por prefijo no es una caja de arena: un comando permitido
+(`node -e`, `python -c`, `npx <paquete>`) puede producir efectos que los
+patrones no ven. La red de seguridad final es revisar el diff antes de
+aprobar el commit, y que `push` siempre sea manual.
 
 ### Regla de no-delegacion
 
-Los agentes que no implementan declaran `task: deny` para que no puedan
-invocar especialistas con `edit: allow`. Esto aplica a `commit`,
-`verify`, `review`, `security`, `explore` y `scout`. Solo `build`
-(orquesta implementacion y gates) y `plan` (orquesta analisis) tienen
-`task` permitido y con allowlist cerrada a sus especialistas.
+Los agentes que no implementan declaran `task: deny`. Solo `build`
+(implementacion y gates) y `plan` (analisis) tienen `task`, con
+allowlist cerrada a sus especialistas.
 
 ### Commit y push
 
-- Una solicitud explicita de commit autoriza el commit plano (`git commit*`)
-  pero solo tras `Verify: APROBADO`. Variantes destructivas (`--amend`,
-  `--no-verify`, `--reuse-message`, `--author`, `--reset-author`)
-  permanecen denegadas.
-- `git push*` permanece denegado globalmente y debe ejecutarse manualmente.
+- `commit` habilita `git commit` plano tras `Verify: APROBADO`; las
+  variantes destructivas (`--amend`, `--no-verify`, `--author`, ...)
+  siguen denegadas.
+- `git push*` permanece denegado globalmente y se ejecuta manualmente.
 
 ### Efectos externos y hardware
 
-- Las reglas de impresion, red y administracion no se activan por si solas:
-  una peticion explicita del usuario autoriza unicamente el efecto nombrado.
+- Una peticion explicita del usuario autoriza unicamente el efecto
+  nombrado (impresion, servicio productivo).
 - Si una validacion depende de una herramienta no disponible (CLI, MCP,
-  dispositivo), el agente lo declara como limitacion en el cierre; no
-  simula un resultado.
+  dispositivo), el agente lo declara como limitacion; no simula resultados.
 
-Las preguntas funcionales bloqueantes deben agruparse; las preferencias
-reversibles deben resolverse sin interrumpir el flujo.
+### Modelos
 
-Los cambios de configuracion requieren reiniciar OpenCode para surtir
-efecto.
+Ningun agente fija `model`: los subagentes heredan el del primario que
+los invoca. Cambiar el modelo de la sesion de `build` (`/models`) cambia
+el de todo el pipeline. Para fijar uno, agrega `model: <proveedor>/<modelo>`
+al frontmatter del agente (ver `opencode models`).
+
+Los cambios de configuracion requieren reiniciar OpenCode.
 
 ---
 
-## Autonomia y consentimiento de sesion
+## Autonomia
 
-OpenCode no ofrece un dialogo previo para agregar todos los permisos de
-una tarea. La UX equivalente a Codex/Claude es:
+Con esta configuracion no hace falta `opencode --auto`: lo no denegado ya
+esta permitido. `--auto` sigue disponible como respaldo si algun proyecto
+agrega reglas `ask` en su propio `opencode.json`; los `deny` explicitos
+se respetan igual.
 
-1. Configurar la allowlist global cubriendo las operaciones locales
-   habituales (lectura, scripts, validadores, runtimes, Git no
-   destructivo, dependencias locales).
-2. Para aprobar el resto en la sesion actual, ejecutar OpenCode con
-   `opencode --auto` o activar **Enable auto-approve permissions** en
-   la TUI antes de pedir el trabajo. Esto aprueba todos los `ask` en
-   la sesion; los `deny` explicitos siguen bloqueados.
-3. Sin `--auto`, cuando aparezca una solicitud, responder:
-   - `once`: solo esa llamada.
-   - `always`: la operacion exacta y futuras coincidencias durante la
-     sesion (no se persiste en `opencode.jsonc`).
-   - `reject`: rechazar.
-4. Una peticion explicita del usuario en su mensaje inicial autoriza
-   el efecto externo nombrado (por ejemplo, ejecutar una impresion o
-   enviar a un servicio productivo); no constituye autorizacion
-   generica para mas alla.
+Flujo de uso: en `plan` resuelves las decisiones funcionales y apruebas la
+Historia; cambias a `build` (Tab) y puedes irte; al volver lees el Cierre
+(`Estado: LISTO PARA COMMIT | REQUIERE ATENCION`), revisas el diff y
+cambias a `commit`.
 
 ---
 

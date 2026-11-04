@@ -83,6 +83,10 @@ aplique.
 - Decisiones pendientes: <lista vacia si no hay>
 ```
 
+Build ejecuta sin supervision y no puede preguntar: resuelve con el
+usuario cualquier decision funcional antes de entregar la Historia, de
+modo que `Decisiones pendientes` quede vacia.
+
 Politica de salida:
 
 - Tamano proporcional a la tarea; una Historia para un cambio pequeno debe
