@@ -30,6 +30,10 @@ supervision (`question: deny`) y nunca se queda esperando un `ask`.
     security.md              Especialista seguridad
     review.md                Especialista revision
     verify.md                Subagente: verificacion independiente
+  commands/                  Comandos /slash globales
+    impeccable.md            /impeccable <comando> <objetivo>
+    taste.md                 /taste <tarea> (design-taste-frontend)
+    redesign.md              /redesign <objetivo> (critique+audit -> rediseño)
   skills/                    Conocimiento reutilizable
     conventional-commits/    Formato de mensajes commit
     documentation/           Criterios para actualizar docs
@@ -88,6 +92,29 @@ Plan  ->  Build  ->  especialistas  ->  Security  ->  Review  ->  Verify  ->  Co
 |-----------|-----------|----------------|
 | `explore` | Busqueda rapida en el codebase local, read-only | `edit: deny`, `bash: deny`, `webfetch: deny`, `question: deny` |
 | `scout` | Investigacion de documentacion externa, read-only | `edit: deny`, `bash: deny`, `question: deny` |
+
+---
+
+## Skills de diseno y comandos
+
+Las skills de diseno viven en cada proyecto (`.opencode/skills`,
+`.agents/skills` o `.claude/skills`); `opencode debug skill` lista las que
+detecta. La documentacion pide que la carpeta se llame igual que el `name`
+del SKILL.md (1.18.31 la carga igual, pero conviene respetarlo). Las skills **no se
+aplican solas**: el modelo debe cargarlas con la herramienta `skill`. Por
+eso `frontend` tiene la carga como obligatoria antes de tocar UI y
+verifica con los chequeos de `audit` de impeccable antes de reportar.
+
+| Skill | Instalacion | Uso |
+|-------|-------------|-----|
+| `impeccable` | `npx impeccable install` y luego `/impeccable init` | `/impeccable <comando> <objetivo>` |
+| `design-taste-frontend` | `npx skills add https://github.com/Leonxlnx/taste-skill --skill design-taste-frontend` | `/taste <tarea>` |
+| `redesign-existing-projects` | Retirada upstream; reemplazada por las dos anteriores | `/redesign <objetivo>` |
+
+Los comandos globales corren en `build`, asi que pasan por el pipeline
+(frontend -> review -> verify). Los de evaluacion (`critique`, `audit`)
+solo reportan. Si el proyecto trae su propio `.opencode/commands/impeccable.md`
+(lo instala `npx impeccable install`), ese reemplaza al global.
 
 ---
 
